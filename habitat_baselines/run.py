@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import argparse
+import os
 import random
 
 import numpy as np
@@ -13,6 +14,8 @@ import torch
 from habitat.config import Config
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.config.default import get_config
+
+import wandb
 
 
 def main():
@@ -72,8 +75,72 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
         None.
     """
     config = get_config(exp_config, opts)
+
+    # Setup weights-and-biases monitoring.
+    config.defrost()
+
+    config.LOG_FILE = os.path.join(wandb.run.dir, f'{run_type}.log')
+    config.CHECKPOINT_FOLDER = os.path.join(wandb.run.dir, 'checkpoints')
+    config.TENSORBOARD_DIR = os.path.join(wandb.run.dir, 'tb')
+    config.VIDEO_DIR = os.path.join(wandb.run.dir, 'videos')
+    config.EVAL_CKPT_PATH_DIR = os.path.join(wandb.run.dir, 'checkpoints')
+
+    config.freeze()
+
+    # Save config to wandb.
+    save_config(exp_config, config)
+
+    # Execute experiment.
     execute_exp(config, run_type)
 
 
+def save_config(exp_config, config):
+    # Save the original configs.
+    wandb.save(exp_config)
+    wandb.save(config.BASE_TASK_CONFIG_PATH)
+
+    # Log hyper-parameters (find a better way of doing this).
+    wandb.config.update({
+        "rl": {
+            "ddppo": {
+                "backbone": config.RL.DDPPO.backbone,
+                "num_recurrent_layers": config.RL.DDPPO.num_recurrent_layers,
+                "pretrained": config.RL.DDPPO.pretrained,
+                "pretrained_encoder": config.RL.DDPPO.pretrained_encoder,
+                "pretrained_weights": config.RL.DDPPO.pretrained_weights,
+                "reset_critic": config.RL.DDPPO.reset_critic,
+                "rnn_type": config.RL.DDPPO.rnn_type,
+                "sync_frac": config.RL.DDPPO.sync_frac,
+                "train_encoder": config.RL.DDPPO.train_encoder
+            },
+            "ppo": {
+                "clip_param": config.RL.PPO.clip_param,
+                "entropy_coef": config.RL.PPO.entropy_coef,
+                "eps": config.RL.PPO.eps,
+                "gamma": config.RL.PPO.gamma,
+                "hidden_size": config.RL.PPO.hidden_size,
+                "lr": config.RL.PPO.lr,
+                "max_grad_norm": config.RL.PPO.max_grad_norm,
+                "num_mini_batch": config.RL.PPO.num_mini_batch,
+                "num_steps": config.RL.PPO.num_steps,
+                "ppo_epoch": config.RL.PPO.ppo_epoch,
+                "tau": config.RL.PPO.tau,
+                "use_gae": config.RL.PPO.use_gae,
+                "use_linear_clip_decay": config.RL.PPO.use_linear_clip_decay,
+                "use_linear_lr_decay": config.RL.PPO.use_linear_lr_decay,
+                "use_normalized_advantage": config.RL.PPO.use_normalized_advantage,
+                "value_loss_coef": config.RL.PPO.value_loss_coef
+            },
+            "reward_measure": config.RL.REWARD_MEASURE,
+            "slack_reward": config.RL.SLACK_REWARD,
+            "success_measure": config.RL.SUCCESS_MEASURE,
+            "success_reward": config.RL.SUCCESS_REWARD,
+        }
+    })
+
+
 if __name__ == "__main__":
+    # Setup weights-and-biases monitoring.
+    wandb.init()
+
     main()

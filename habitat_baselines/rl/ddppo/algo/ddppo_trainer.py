@@ -46,6 +46,7 @@ from habitat_baselines.rl.ppo.ppo_trainer import PPOTrainer
 from habitat_baselines.utils.common import batch_obs, linear_decay
 from habitat_baselines.utils.env_utils import construct_envs
 
+import wandb
 
 @baseline_registry.register_trainer(name="ddppo")
 class DDPPOTrainer(PPOTrainer):
@@ -427,6 +428,12 @@ class DDPPOTrainer(PPOTrainer):
                         {k: l for l, k in zip(losses, ["value", "policy"])},
                         count_steps,
                     )
+
+                    # Weights-and-biases logging.
+                    log = {"reward": deltas["reward"] / deltas["count"], 'update': update}
+                    log.update(metrics)
+                    log.update({k: l for l, k in zip(losses, ["loss_value", "loss_policy"])})
+                    wandb.log(log)
 
                     # log stats
                     if update > 0 and update % self.config.LOG_INTERVAL == 0:
