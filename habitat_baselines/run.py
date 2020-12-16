@@ -10,6 +10,7 @@ import random
 import numpy as np
 import torch
 
+from habitat import make_dataset
 from habitat.config import Config
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.config.default import get_config
@@ -60,6 +61,38 @@ def execute_exp(config: Config, run_type: str) -> None:
         trainer.eval()
 
 
+def get_replica_config(config):
+    r""" Updates the config to replicate scenes.
+
+    Updates the config to include replicated scenes to support multiple workers
+    when there are insufficient workers.
+
+    :param config: Habitat.config
+    :return: Habitat.config
+    """
+    # Determine the number of scenes in this dataset.
+    dataset = make_dataset(config.TASK_CONFIG.DATASET.TYPE)
+    scenes = config.TASK_CONFIG.DATASET.CONTENT_SCENES
+    if "*" in config.TASK_CONFIG.DATASET.CONTENT_SCENES:
+        scenes = dataset.get_scenes_to_load(config.TASK_CONFIG.DATASET)
+
+    if len(scenes) >= config.NUM_PROCESSES:
+        # Fallback to default handling in habitat.
+        return config
+
+    assert config.NUM_PROCESSES % len(scenes) == 0, "Number of processes must be divisible by number of scenes."
+
+    # Determine number of replicas.
+    num_replicas = config.NUM_PROCESSES // len(scenes)
+
+    # Update config.
+    config.defrost()
+    config.TASK_CONFIG.DATASET.CONTENT_SCENES = scenes * num_replicas
+    config.freeze()
+
+    return config
+
+
 def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     r"""Runs experiment given mode and config
 
@@ -72,6 +105,7 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
         None.
     """
     config = get_config(exp_config, opts)
+    config = get_replica_config(config)
     execute_exp(config, run_type)
 
 
