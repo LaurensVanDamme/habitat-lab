@@ -117,7 +117,6 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     config.CHECKPOINT_FOLDER = os.path.join(wandb.run.dir, 'checkpoints')
     config.TENSORBOARD_DIR = os.path.join(wandb.run.dir, 'tb')
     config.VIDEO_DIR = os.path.join(wandb.run.dir, 'videos')
-    config.EVAL_CKPT_PATH_DIR = os.path.join(wandb.run.dir, 'checkpoints')
 
     config.freeze()
 
