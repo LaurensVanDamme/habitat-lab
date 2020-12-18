@@ -430,7 +430,7 @@ class DDPPOTrainer(PPOTrainer):
                     )
 
                     # Weights-and-biases logging.
-                    log = {"reward": deltas["reward"] / deltas["count"], 'update': update}
+                    log = {"reward": deltas["reward"] / deltas["count"], 'update': update, "frames": count_steps, "fps": count_steps/((time.time() - t_start) + prev_time)}
                     log.update(metrics)
                     log.update({k: l for l, k in zip(losses, ["loss_value", "loss_policy"])})
                     wandb.log(log)

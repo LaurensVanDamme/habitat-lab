@@ -134,6 +134,8 @@ def save_config(exp_config, config):
 
     # Log hyper-parameters (find a better way of doing this).
     wandb.config.update({
+        "num_processes": config.NUM_PROCESSES,
+        "num_updates": config.NUM_UPDATES,
         "rl": {
             "ddppo": {
                 "backbone": config.RL.DDPPO.backbone,
@@ -168,6 +170,21 @@ def save_config(exp_config, config):
             "slack_reward": config.RL.SLACK_REWARD,
             "success_measure": config.RL.SUCCESS_MEASURE,
             "success_reward": config.RL.SUCCESS_REWARD,
+        },
+        "gpulab": {
+            "GPULAB_CLUSTER_ID": os.environ.get("GPULAB_CLUSTER_ID", ""),
+            "GPULAB_CPUS_RESERVED": os.environ.get("GPULAB_CPUS_RESERVED", ""),
+            "GPULAB_GPUS_RESERVED": os.environ.get("GPULAB_GPUS_RESERVED", ""),
+            "GPULAB_JOB_ID": os.environ.get("GPULAB_JOB_ID", ""),
+            "GPULAB_MEM_RESERVED": os.environ.get("GPULAB_MEM_RESERVED", ""),
+            "GPULAB_PROJECT": os.environ.get("GPULAB_PROJECT", ""),
+            "GPULAB_SLAVE_DNSNAME": os.environ.get("GPULAB_SLAVE_DNSNAME", ""),
+            "GPULAB_SLAVE_HOSTNAME": os.environ.get("GPULAB_SLAVE_HOSTNAME", ""),
+            "GPULAB_SLAVE_INSTANCE_ID": os.environ.get("GPULAB_SLAVE_INSTANCE_ID", ""),
+            "GPULAB_SLAVE_PID": os.environ.get("GPULAB_SLAVE_PID", ""),
+            "GPULAB_USERNAME": os.environ.get("GPULAB_USERNAME", ""),
+            "GPULAB_VERSION": os.environ.get("GPULAB_VERSION", ""),
+            "GPULAB_WORKER_ID": os.environ.get("GPULAB_WORKER_ID", "")
         }
     })
 
