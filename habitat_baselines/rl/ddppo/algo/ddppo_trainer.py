@@ -43,7 +43,13 @@ from habitat_baselines.rl.ddppo.policy.resnet_policy import (  # noqa: F401
     PointNavResNetPolicy,
 )
 from habitat_baselines.rl.ppo.ppo_trainer import PPOTrainer
-from habitat_baselines.utils.common import batch_obs, linear_decay
+from habitat_baselines.utils.common import (
+    batch_obs,
+    get_checkpoint_id,
+    poll_checkpoint_folder,
+    get_checkpoint_paths
+)
+
 from habitat_baselines.utils.env_utils import construct_envs
 
 import wandb
@@ -473,3 +479,56 @@ class DDPPOTrainer(PPOTrainer):
                 profiling_wrapper.range_pop()  # train update
 
             self.envs.close()
+
+    def eval(self) -> None:
+        r"""Main method of trainer evaluation. Calls _eval_checkpoint() that
+        is specified in Trainer class that inherits from BaseRLTrainer
+        or BaseILTrainer
+
+        Returns:
+            None
+        """
+        self.device = (
+            torch.device("cuda", self.config.TORCH_GPU_ID)
+            if torch.cuda.is_available()
+            else torch.device("cpu")
+        )
+
+        if "tensorboard" in self.config.VIDEO_OPTION:
+            assert (
+                len(self.config.TENSORBOARD_DIR) > 0
+            ), "Must specify a tensorboard directory for video display"
+            os.makedirs(self.config.TENSORBOARD_DIR, exist_ok=True)
+        if "disk" in self.config.VIDEO_OPTION:
+            assert (
+                len(self.config.VIDEO_DIR) > 0
+            ), "Must specify a directory for storing videos on disk"
+
+        with TensorboardWriter(
+            self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
+        ) as writer:
+            if os.path.isfile(self.config.EVAL_CKPT_PATH_DIR):
+                # evaluate single checkpoint
+                proposed_index = get_checkpoint_id(
+                    self.config.EVAL_CKPT_PATH_DIR
+                )
+                if proposed_index is not None:
+                    ckpt_idx = proposed_index
+                else:
+                    ckpt_idx = 0
+                self._eval_checkpoint(
+                    self.config.EVAL_CKPT_PATH_DIR,
+                    writer,
+                    checkpoint_index=ckpt_idx,
+                )
+            else:
+                # Evaluate multiple checkpoints in order.
+                print("Evaluating multiple checkpoints")
+                model_paths = get_checkpoint_paths(self.config.EVAL_CKPT_PATH_DIR)
+                for current_ckpt in model_paths:
+                    logger.info(f"=======current_ckpt: {current_ckpt}=======")
+                    self._eval_checkpoint(
+                        checkpoint_path=current_ckpt,
+                        writer=writer,
+                        checkpoint_index=prev_ckpt_ind,
+                    )
