@@ -526,9 +526,10 @@ class DDPPOTrainer(PPOTrainer):
                 print("Evaluating multiple checkpoints")
                 model_paths = get_checkpoint_paths(self.config.EVAL_CKPT_PATH_DIR)
                 for current_ckpt in model_paths:
+                    ckpt_ind = get_checkpoint_id(current_ckpt)
                     logger.info(f"=======current_ckpt: {current_ckpt}=======")
                     self._eval_checkpoint(
                         checkpoint_path=current_ckpt,
                         writer=writer,
-                        checkpoint_index=prev_ckpt_ind,
+                        checkpoint_index=ckpt_ind,
                     )
