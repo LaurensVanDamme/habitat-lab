@@ -47,7 +47,8 @@ from habitat_baselines.utils.common import (
     batch_obs,
     get_checkpoint_id,
     poll_checkpoint_folder,
-    get_checkpoint_paths
+    get_checkpoint_paths,
+    linear_decay
 )
 
 from habitat_baselines.utils.env_utils import construct_envs
