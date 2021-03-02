@@ -12,6 +12,8 @@ import torch
 from gym import spaces
 from torch import nn as nn
 from torch.nn import functional as F
+from torch_geometric.nn import GCNConv
+from torch_geometric.data import Data
 
 from habitat.config import Config
 from habitat.tasks.nav.nav import (
@@ -23,6 +25,8 @@ from habitat.tasks.nav.nav import (
     PointGoalSensor,
     ProximitySensor,
 )
+# TODO: Or include new graph sensor here, or just add it to this file?
+import habitat
 from habitat.tasks.nav.object_nav_task import ObjectGoalSensor
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.rl.ddppo.policy import resnet
@@ -32,6 +36,41 @@ from habitat_baselines.rl.ddppo.policy.running_mean_and_var import (
 from habitat_baselines.rl.models.rnn_state_encoder import RNNStateEncoder
 from habitat_baselines.rl.ppo import Net, Policy
 from habitat_baselines.utils.common import Flatten
+
+
+@habitat.registry.register_sensor(name="graph_sensor")
+class GraphSensor(habitat.Sensor):
+    def __init__(self, config):
+        super().__init__(config=config)
+        print('################################################## GRAPH SENSOR ##################################################')
+
+    # Defines the name of the sensor in the sensor suite dictionary
+    def _get_uuid(self) -> str:
+        return "graph"
+
+    # Defines the type of the sensor
+    # def _get_sensor_type(self, *args: Any, **kwargs: Any):
+    #     return habitat.SensorTypes.POSITION
+
+    # Defines the size and range of the observations of the sensor
+    # def _get_observation_space(self, *args: Any, **kwargs: Any):
+    #     return spaces.Box(
+    #         low=np.finfo(np.float32).min,
+    #         high=np.finfo(np.float32).max,
+    #         shape=(3,),
+    #         dtype=np.float32,
+    #     )
+
+    # This is called whenever reset is called or an action is taken
+    def get_observation(
+        self, observations
+    ):
+        edge_index = torch.tensor([[0, 1, 1, 2],
+                                   [1, 0, 2, 1]], dtype=torch.long)
+        x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
+
+        data = Data(x=x, edge_index=edge_index)
+        return data
 
 
 @baseline_registry.register_policy
@@ -78,6 +117,42 @@ class PointNavResNetPolicy(Policy):
             normalize_visual_inputs="rgb" in observation_space.spaces,
             force_blind_policy=config.FORCE_BLIND_POLICY,
         )
+
+
+# TODO: add GCN?
+class GCN(nn.Module):
+    def __init__(self,
+                 observation_space: spaces.Dict,
+                 num_GCN_features: int = 128,
+                 ):
+        super(GCN, self).__init__()
+
+        if "graph" in observation_space.spaces:
+            self.num_node_features = observation_space.spaces["graph"].shape[2]
+        else:
+            self.num_node_features = 0
+
+        if not self.is_blind:
+            self.conv1 = GCNConv(self.num_node_features, num_GCN_features)
+            self.conv2 = GCNConv(num_GCN_features, num_GCN_features)
+
+    @property
+    def is_blind(self):
+        return self.num_node_features == 0
+
+    def forward(self, observations: Dict[str, torch.Tensor]) -> torch.Tensor:
+        if self.is_blind:
+            return None
+
+        graph_observation = observations["graph"]
+
+        x, edge_index = graph_observation.x, graph_observation.edge_index
+
+        x = self.conv1(x, edge_index)
+        x = F.relu(x)
+        x = self.conv2(x, edge_index)
+
+        return x
 
 
 class ResNetEncoder(nn.Module):
@@ -292,6 +367,8 @@ class PointNavResNetNet(Net):
 
             rnn_input_size += hidden_size
 
+        # TODO: add GraphSensor?
+
         self._hidden_size = hidden_size
 
         self.visual_encoder = ResNetEncoder(
@@ -332,7 +409,7 @@ class PointNavResNetNet(Net):
     def num_recurrent_layers(self):
         return self.state_encoder.num_recurrent_layers
 
-    def forward(
+    def forward(   # TODO: This is where all the vectors of each sensor together?
         self,
         observations: Dict[str, torch.Tensor],
         rnn_hidden_states,
@@ -408,6 +485,8 @@ class PointNavResNetNet(Net):
             goal_image = observations[ImageGoalSensor.cls_uuid]
             goal_output = self.goal_visual_encoder({"rgb": goal_image})
             x.append(self.goal_visual_fc(goal_output))
+
+        # TODO: add GraphSensor observation?
 
         prev_actions = self.prev_action_embedding(
             ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)
