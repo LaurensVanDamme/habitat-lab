@@ -3,7 +3,7 @@ cached-property==1.5.2
 certifi==2020.12.5
 chardet==4.0.0
 cycler==0.10.0
-dataclasses==0.8
+dataclasses==0.6
 decorator==4.4.2
 googledrivedownloader==0.4
 h5py==3.1.0
