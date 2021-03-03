@@ -58,7 +58,6 @@ class GraphSensor(habitat.Sensor):
         return data
 
 def main():
-    print('########################################### PRINT TEST ###########################################')
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--run-type",
@@ -152,10 +151,18 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     # Setup weights-and-biases monitoring.
     config.defrost()
 
+
     config.LOG_FILE = os.path.join(wandb.run.dir, f'{run_type}.log')
     config.CHECKPOINT_FOLDER = os.path.join(wandb.run.dir, 'checkpoints')
     config.TENSORBOARD_DIR = os.path.join(wandb.run.dir, 'tb')
     config.VIDEO_DIR = os.path.join(wandb.run.dir, 'videos')
+
+    # Add the graph sensor to the task
+    config.TASK.AGENT_GRAPH_SENSOR = habitat.Config()
+    # Use the custom name
+    config.TASK.AGENT_POSITION_SENSOR.TYPE = "graph_sensor"
+    # Add the sensor to the list of sensors in use
+    config.TASK.SENSORS.append("GRAPH_SENSOR")
 
     config.freeze()
 
