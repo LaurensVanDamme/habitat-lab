@@ -58,6 +58,7 @@ class GraphSensor(habitat.Sensor):
         return data
 
 def main():
+    print('########################################### PRINT TEST ###########################################')
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--run-type",
