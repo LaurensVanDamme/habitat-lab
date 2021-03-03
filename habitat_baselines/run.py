@@ -148,6 +148,12 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     config = get_config(exp_config, opts)
     config = get_replica_config(config)
 
+    print('##### CONFIG ####')
+    print(config)
+
+    print('##### CONFIG.TASK ####')
+    print(config.keys())
+
     # Setup weights-and-biases monitoring.
     config.defrost()
 
