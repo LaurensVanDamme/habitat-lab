@@ -133,11 +133,12 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     config.TASK_CONFIG.TASK.SENSORS.append("NODES_SENSOR")
 
     # Add the graph of the env to the sensors
-    graph = {
-        'edges': [[0, 1, 1, 2], [1, 0, 2, 1]],
-        'nodes': [[-1], [0], [1]],
-        'updated': False
-    }
+    # graph = {
+    #     'edges': [[0, 1, 1, 2], [1, 0, 2, 1]],
+    #     'nodes': [[-1], [0], [1]],
+    #     'updated': False
+    # }
+    graph = [False, [[-1], [0], [1]], [[0, 1, 1, 2], [1, 0, 2, 1]]]
     config.TASK_CONFIG.TASK.EDGES_SENSOR.GRAPH = graph
     config.TASK_CONFIG.TASK.NODES_SENSOR.GRAPH = graph
 

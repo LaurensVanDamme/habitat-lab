@@ -8,7 +8,7 @@ from gym import spaces
 
 def graph_update(graph):
     print("################################################### GRAPH UPDATE ###################################################")
-    graph['updated'] = True
+    graph[0] = True
     return graph
 
 
@@ -42,11 +42,12 @@ class EdgesSensor(habitat.Sensor):
     def get_observation(
         self, observations, *args: Any, episode, **kwargs: Any
     ):
-        if self.graph['updated']:
-            self.graph['updated'] = False
+        if self.graph[0]:
+            self.graph[0] = False
         else:
             graph_update(self.graph)
-        edges = self.graph['edges']
+        print('################################################## EDGES SENSOR OBSERVATION ##################################################')
+        edges = self.graph[2]
         return np.array(edges)
 
 
@@ -80,11 +81,12 @@ class NodesSensor(habitat.Sensor):
     def get_observation(
         self, observations, *args: Any, episode, **kwargs: Any
     ):
-        if self.graph['updated']:
-            self.graph['updated'] = False
+        if self.graph[0]:
+            self.graph[0] = False
         else:
             graph_update(self.graph)
-        nodes = self.graph['nodes']
+        print('################################################## NODES SENSOR OBSERVATION ##################################################')
+        nodes = self.graph[1]
         return np.array(nodes)
 
 
