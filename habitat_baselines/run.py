@@ -17,45 +17,7 @@ from habitat.config import Config
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.config.default import get_config
 
-from torch_geometric.nn import GCNConv
-from torch_geometric.data import Data
-
 import wandb
-
-@habitat.registry.register_sensor(name="graph_sensor")
-class GraphSensor(habitat.Sensor):
-    def __init__(self, config):
-        super().__init__(config=config)
-        print('################################################## GRAPH SENSOR ##################################################')
-
-    # Defines the name of the sensor in the sensor suite dictionary
-    def _get_uuid(self) -> str:
-        return "graph"
-
-    # Defines the type of the sensor
-    # def _get_sensor_type(self, *args: Any, **kwargs: Any):
-    #     return habitat.SensorTypes.POSITION
-
-    # Defines the size and range of the observations of the sensor
-    # def _get_observation_space(self, *args: Any, **kwargs: Any):
-    #     return spaces.Box(
-    #         low=np.finfo(np.float32).min,
-    #         high=np.finfo(np.float32).max,
-    #         shape=(3,),
-    #         dtype=np.float32,
-    #     )
-
-    # This is called whenever reset is called or an action is taken
-    def get_observation(
-        self, observations
-    ):
-        print("################################################## GRAPH SENSOR DOES SOMETHING ##################################################")
-        edge_index = torch.tensor([[0, 1, 1, 2],
-                                   [1, 0, 2, 1]], dtype=torch.long)
-        x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
-
-        data = Data(x=x, edge_index=edge_index)
-        return data
 
 def main():
     parser = argparse.ArgumentParser()
@@ -148,15 +110,8 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     config = get_config(exp_config, opts)
     config = get_replica_config(config)
 
-    print('##### CONFIG ####')
-    print(config)
-
-    print('##### CONFIG.TASK ####')
-    print(config.keys())
-
     # Setup weights-and-biases monitoring.
     config.defrost()
-
 
     config.LOG_FILE = os.path.join(wandb.run.dir, f'{run_type}.log')
     config.CHECKPOINT_FOLDER = os.path.join(wandb.run.dir, 'checkpoints')
@@ -164,11 +119,17 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     config.VIDEO_DIR = os.path.join(wandb.run.dir, 'videos')
 
     # Add the graph sensor to the task
-    config.TASK.AGENT_GRAPH_SENSOR = habitat.Config()
+    config.TASK_CONFIG.TASK.GRAPH_SENSOR = habitat.Config()
     # Use the custom name
-    config.TASK.AGENT_POSITION_SENSOR.TYPE = "graph_sensor"
+    config.TASK_CONFIG.TASK.GRAPH_SENSOR.TYPE = "graph_sensor"
+    # Add the graph of the env to the sensor
+    graph = {
+        'edge_index': [[0, 1, 1, 2], [1, 0, 2, 1]],
+        'x': [[-1], [0], [1]]
+    }
+    config.TASK_CONFIG.TASK.GRAPH_SENSOR.GRAPH = graph
     # Add the sensor to the list of sensors in use
-    config.TASK.SENSORS.append("GRAPH_SENSOR")
+    config.TASK_CONFIG.TASK.SENSORS.append("GRAPH_SENSOR")
 
     config.freeze()
 

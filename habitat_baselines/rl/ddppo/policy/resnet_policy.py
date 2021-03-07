@@ -25,8 +25,9 @@ from habitat.tasks.nav.nav import (
     PointGoalSensor,
     ProximitySensor,
 )
-# TODO: Or include new graph sensor here, or just add it to this file?
-import habitat
+# TODO: include new graph sensor here
+from habitat_baselines.graph_sensor import GraphSensor
+
 from habitat.tasks.nav.object_nav_task import ObjectGoalSensor
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.rl.ddppo.policy import resnet
@@ -332,7 +333,9 @@ class PointNavResNetNet(Net):
 
             rnn_input_size += hidden_size
 
-        # TODO: add GraphSensor?
+        # TODO: add GraphSensor -> GCN?
+        if GraphSensor.cls_uuid in observation_space.spaces:
+            print('################################################## GRAPH SENSOR FOUND ##################################################')
 
         self._hidden_size = hidden_size
 
@@ -452,6 +455,8 @@ class PointNavResNetNet(Net):
             x.append(self.goal_visual_fc(goal_output))
 
         # TODO: add GraphSensor observation?
+        if GraphSensor.cls_uuid in observations:
+            print('################################################## GRAPH OBSERVATION FOUND ##################################################')
 
         prev_actions = self.prev_action_embedding(
             ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)
