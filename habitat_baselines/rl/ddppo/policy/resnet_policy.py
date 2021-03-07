@@ -12,8 +12,9 @@ import torch
 from gym import spaces
 from torch import nn as nn
 from torch.nn import functional as F
-from torch_geometric.nn import GCNConv
-from torch_geometric.data import Data
+import torch_geometric
+from torch_geometric.nn import GCNConv, global_mean_pool
+from torch_geometric.data import Data, Batch
 
 from habitat.config import Config
 from habitat.tasks.nav.nav import (
@@ -116,18 +117,35 @@ class GCN(nn.Module):
             return None
 
         # data = Data(x=observations["nodes"], edge_index=observations['edges'])
+        # print(observations['nodes'])
+        # print(observations['edges'])
+        batch_x, batch_edge_index = observations['nodes'], observations['edges'].long()
 
-        x, edge_index = observations["nodes"], observations['edges']
+        batch_size = len(batch_x)
+        l = []
+        for i in range(batch_size):
+            l.append(Data(x=batch_x[i], edge_index=batch_edge_index[i]))
+        batch = Batch.from_data_list(l)
 
-        x = self.conv1(x, edge_index)
+        x = self.conv1(batch.x, batch.edge_index)
         x = F.relu(x)
-        x = self.conv2(x, edge_index)
+        x = self.conv2(x, batch.edge_index)
         x = F.relu(x)
-        x = self.conv3(x, edge_index)
-        x = self.lin(x)
+        x = self.conv3(x, batch.edge_index)
+        x = self.lin(x)  # TODO: Keep this or not?
 
-        print('################################################### GCN X ###################################################')
-        print(x)
+        # print('################################################### GCN X ###################################################')
+        # print(x.shape)
+        # print(x)
+        # Make a batch, aka a list with the index of each list in the tensor to which part of the batch it belongs
+        batch = []
+        for i in range(batch_size):
+            for j in range(int(x.shape[0] / batch_size)):
+                batch.append(i)
+        # print(batch)
+        # Split the result back into 4 different tensors (as there are 4 in one batch)
+        x = global_mean_pool(x, torch.tensor(batch, device='cuda:0'))
+        # print(x)
 
         return x
 
@@ -212,17 +230,21 @@ class ResNetEncoder(nn.Module):
         cnn_input = []
         if self._n_input_rgb > 0:
             rgb_observations = observations["rgb"]
+
             # permute tensor to dimension [BATCH x CHANNEL x HEIGHT X WIDTH]
             rgb_observations = rgb_observations.permute(0, 3, 1, 2)
             rgb_observations = rgb_observations / 255.0  # normalize RGB
+
             cnn_input.append(rgb_observations)
 
         if self._n_input_depth > 0:
             depth_observations = observations["depth"]
-
+            # print('################################################### DEPTH ###################################################')
+            # print(depth_observations)
             # permute tensor to dimension [BATCH x CHANNEL x HEIGHT X WIDTH]
             depth_observations = depth_observations.permute(0, 3, 1, 2)
 
+            # print(depth_observations)
             cnn_input.append(depth_observations)
 
         x = torch.cat(cnn_input, dim=1)
@@ -346,7 +368,7 @@ class PointNavResNetNet(Net):
 
         # TODO: add GraphSensor -> GCN?
         if NodesSensor.cls_uuid in observation_space.spaces and EdgesSensor.cls_uuid in observation_space.spaces:
-            print('################################################## GRAPH SENSOR FOUND ##################################################')
+            # print('################################################## GRAPH SENSOR FOUND ##################################################')
             self.GCN = GCN(observation_space)
             rnn_input_size += self.GCN.num_output_features
 
@@ -407,10 +429,15 @@ class PointNavResNetNet(Net):
             visual_feats = self.visual_fc(visual_feats)
             x.append(visual_feats)
 
+        # print('################################################## OBSERVATION KEYS ##################################################')
+        # print(observations.keys())
+
         if IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
             goal_observations = observations[
                 IntegratedPointGoalGPSAndCompassSensor.cls_uuid
             ]
+            # print('################################################## IntegratedPointGoalGPSAndCompassSensor ##################################################')
+            # print(goal_observations)
             goal_observations = torch.stack(
                 [
                     goal_observations[:, 0],
@@ -419,11 +446,13 @@ class PointNavResNetNet(Net):
                 ],
                 -1,
             )
-
+            # print(goal_observations)
             x.append(self.tgt_embeding(goal_observations))
 
         if PointGoalSensor.cls_uuid in observations:
             goal_observations = observations[PointGoalSensor.cls_uuid]
+            # print('################################################## PointGoalSensor ##################################################')
+            # print(goal_observations)
             x.append(self.pointgoal_embedding(goal_observations))
 
         if ProximitySensor.cls_uuid in observations:
@@ -469,10 +498,14 @@ class PointNavResNetNet(Net):
 
         # TODO: add GraphSensor observation?
         if NodesSensor.cls_uuid in observations and EdgesSensor.cls_uuid in observations:
-            print('################################################## GRAPH OBSERVATION FOUND ##################################################')
+            # print('################################################## GRAPH OBSERVATION FOUND ##################################################')
             nodes = observations[NodesSensor.cls_uuid]
             edges = observations[EdgesSensor.cls_uuid]
+            # print('---------------------------- BEFORE ----------------------------')
+            # print(x)
             x.append(self.GCN({'edges': edges, 'nodes': nodes}))
+            # print('---------------------------- AFTER ----------------------------')
+            # print(x)
 
         prev_actions = self.prev_action_embedding(
             ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)

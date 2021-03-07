@@ -7,7 +7,7 @@ from gym import spaces
 
 
 def graph_update(graph):
-    print("################################################### GRAPH UPDATE ###################################################")
+    # print("################################################### GRAPH UPDATE ###################################################")
     graph[0] = True
     return graph
 
@@ -18,7 +18,7 @@ class EdgesSensor(habitat.Sensor):
 
     def __init__(self, sim, config, **kwargs: Any):
         super().__init__(config=config)
-        print('################################################## EDGES SENSOR ##################################################')
+        # print('################################################## EDGES SENSOR ##################################################')
         self.graph = self.config.GRAPH
 
     # Defines the name of the sensor in the sensor suite dictionary
@@ -42,11 +42,11 @@ class EdgesSensor(habitat.Sensor):
     def get_observation(
         self, observations, *args: Any, episode, **kwargs: Any
     ):
+        # print('################################################## EDGES SENSOR OBSERVATION ##################################################')
         if self.graph[0]:
             self.graph[0] = False
         else:
             graph_update(self.graph)
-        print('################################################## EDGES SENSOR OBSERVATION ##################################################')
         edges = self.graph[2]
         return np.array(edges)
 
@@ -57,7 +57,7 @@ class NodesSensor(habitat.Sensor):
 
     def __init__(self, sim, config, **kwargs: Any):
         super().__init__(config=config)
-        print('################################################## NODES SENSOR ##################################################')
+        # print('################################################## NODES SENSOR ##################################################')
         self.graph = self.config.GRAPH
 
     # Defines the name of the sensor in the sensor suite dictionary
@@ -81,11 +81,11 @@ class NodesSensor(habitat.Sensor):
     def get_observation(
         self, observations, *args: Any, episode, **kwargs: Any
     ):
+        # print('################################################## NODES SENSOR OBSERVATION ##################################################')
         if self.graph[0]:
             self.graph[0] = False
         else:
             graph_update(self.graph)
-        print('################################################## NODES SENSOR OBSERVATION ##################################################')
         nodes = self.graph[1]
         return np.array(nodes)
 
