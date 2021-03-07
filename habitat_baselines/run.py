@@ -118,18 +118,28 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     config.TENSORBOARD_DIR = os.path.join(wandb.run.dir, 'tb')
     config.VIDEO_DIR = os.path.join(wandb.run.dir, 'videos')
 
-    # Add the graph sensor to the task
-    config.TASK_CONFIG.TASK.GRAPH_SENSOR = habitat.Config()
+    # Add the edges sensor to the task
+    config.TASK_CONFIG.TASK.EDGES_SENSOR = habitat.Config()
     # Use the custom name
-    config.TASK_CONFIG.TASK.GRAPH_SENSOR.TYPE = "graph_sensor"
-    # Add the graph of the env to the sensor
-    graph = {
-        'edge_index': [[0, 1, 1, 2], [1, 0, 2, 1]],
-        'x': [[-1], [0], [1]]
-    }
-    config.TASK_CONFIG.TASK.GRAPH_SENSOR.GRAPH = graph
+    config.TASK_CONFIG.TASK.EDGES_SENSOR.TYPE = "edges_sensor"
     # Add the sensor to the list of sensors in use
-    config.TASK_CONFIG.TASK.SENSORS.append("GRAPH_SENSOR")
+    config.TASK_CONFIG.TASK.SENSORS.append("EDGES_SENSOR")
+
+    # Add the nodes sensor to the task
+    config.TASK_CONFIG.TASK.NODES_SENSOR = habitat.Config()
+    # Use the custom name
+    config.TASK_CONFIG.TASK.NODES_SENSOR.TYPE = "nodes_sensor"
+    # Add the sensor to the list of sensors in use
+    config.TASK_CONFIG.TASK.SENSORS.append("NODES_SENSOR")
+
+    # Add the graph of the env to the sensors
+    graph = {
+        'edges': [[0, 1, 1, 2], [1, 0, 2, 1]],
+        'nodes': [[-1], [0], [1]],
+        'updated': False
+    }
+    config.TASK_CONFIG.TASK.EDGES_SENSOR.GRAPH = graph
+    config.TASK_CONFIG.TASK.NODES_SENSOR.GRAPH = graph
 
     config.freeze()
 

@@ -26,7 +26,7 @@ from habitat.tasks.nav.nav import (
     ProximitySensor,
 )
 # TODO: include new graph sensor here
-from habitat_baselines.graph_sensor import GraphSensor
+from habitat_baselines.graph_sensor import GraphSensor, NodesSensor, EdgesSensor
 
 from habitat.tasks.nav.object_nav_task import ObjectGoalSensor
 from habitat_baselines.common.baseline_registry import baseline_registry
@@ -89,18 +89,23 @@ class PointNavResNetPolicy(Policy):
 class GCN(nn.Module):
     def __init__(self,
                  observation_space: spaces.Dict,
-                 num_GCN_features: int = 128,
+                 hidden_channels: int = 128,
+                 num_output_features: int = 128
                  ):
         super(GCN, self).__init__()
+        self.hidden_channels = hidden_channels
+        self.num_output_features = num_output_features
 
-        if "graph" in observation_space.spaces:
-            self.num_node_features = observation_space.spaces["graph"].shape[2]
+        if "nodes" in observation_space.spaces:
+            self.num_node_features = observation_space.spaces["nodes"].shape[1]
         else:
             self.num_node_features = 0
 
         if not self.is_blind:
-            self.conv1 = GCNConv(self.num_node_features, num_GCN_features)
-            self.conv2 = GCNConv(num_GCN_features, num_GCN_features)
+            self.conv1 = GCNConv(self.num_node_features, hidden_channels)
+            self.conv2 = GCNConv(hidden_channels, hidden_channels)
+            self.conv3 = GCNConv(hidden_channels, hidden_channels)
+            self.lin = nn.Linear(hidden_channels, num_output_features)
 
     @property
     def is_blind(self):
@@ -110,13 +115,19 @@ class GCN(nn.Module):
         if self.is_blind:
             return None
 
-        graph_observation = observations["graph"]
+        # data = Data(x=observations["nodes"], edge_index=observations['edges'])
 
-        x, edge_index = graph_observation.x, graph_observation.edge_index
+        x, edge_index = observations["nodes"], observations['edges']
 
         x = self.conv1(x, edge_index)
         x = F.relu(x)
         x = self.conv2(x, edge_index)
+        x = F.relu(x)
+        x = self.conv3(x, edge_index)
+        x = self.lin(x)
+
+        print('################################################### GCN X ###################################################')
+        print(x)
 
         return x
 
@@ -334,8 +345,10 @@ class PointNavResNetNet(Net):
             rnn_input_size += hidden_size
 
         # TODO: add GraphSensor -> GCN?
-        if GraphSensor.cls_uuid in observation_space.spaces:
+        if NodesSensor.cls_uuid in observation_space.spaces and EdgesSensor.cls_uuid in observation_space.spaces:
             print('################################################## GRAPH SENSOR FOUND ##################################################')
+            self.GCN = GCN(observation_space)
+            rnn_input_size += self.GCN.num_output_features
 
         self._hidden_size = hidden_size
 
@@ -455,8 +468,11 @@ class PointNavResNetNet(Net):
             x.append(self.goal_visual_fc(goal_output))
 
         # TODO: add GraphSensor observation?
-        if GraphSensor.cls_uuid in observations:
+        if NodesSensor.cls_uuid in observations and EdgesSensor.cls_uuid in observations:
             print('################################################## GRAPH OBSERVATION FOUND ##################################################')
+            nodes = observations[NodesSensor.cls_uuid]
+            edges = observations[EdgesSensor.cls_uuid]
+            x.append(self.GCN({'edges': edges, 'nodes': nodes}))
 
         prev_actions = self.prev_action_embedding(
             ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)

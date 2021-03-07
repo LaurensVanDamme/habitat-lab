@@ -1,9 +1,16 @@
 import habitat
 import numpy as np
-from torch_geometric.data import Data
+# from torch_geometric.data import Data
 
 from typing import Any
 from gym import spaces
+
+
+def graph_update(graph):
+    print("################################################### GRAPH UPDATE ###################################################")
+    graph['updated'] = True
+    return graph
+
 
 @habitat.registry.register_sensor(name="edges_sensor")
 class EdgesSensor(habitat.Sensor):
@@ -11,6 +18,7 @@ class EdgesSensor(habitat.Sensor):
 
     def __init__(self, sim, config, **kwargs: Any):
         super().__init__(config=config)
+        print('################################################## EDGES SENSOR ##################################################')
         self.graph = self.config.GRAPH
 
     # Defines the name of the sensor in the sensor suite dictionary
@@ -30,12 +38,15 @@ class EdgesSensor(habitat.Sensor):
                 dtype=np.float32,
                 )
 
-
     # This is called whenever reset is called or an action is taken
     def get_observation(
         self, observations, *args: Any, episode, **kwargs: Any
     ):
-        edges = [[0, 1, 1, 2], [1, 0, 2, 1]]
+        if self.graph['updated']:
+            self.graph['updated'] = False
+        else:
+            graph_update(self.graph)
+        edges = self.graph['edges']
         return np.array(edges)
 
 
@@ -45,6 +56,7 @@ class NodesSensor(habitat.Sensor):
 
     def __init__(self, sim, config, **kwargs: Any):
         super().__init__(config=config)
+        print('################################################## NODES SENSOR ##################################################')
         self.graph = self.config.GRAPH
 
     # Defines the name of the sensor in the sensor suite dictionary
@@ -68,7 +80,11 @@ class NodesSensor(habitat.Sensor):
     def get_observation(
         self, observations, *args: Any, episode, **kwargs: Any
     ):
-        nodes = [[-1], [0], [1]]
+        if self.graph['updated']:
+            self.graph['updated'] = False
+        else:
+            graph_update(self.graph)
+        nodes = self.graph['nodes']
         return np.array(nodes)
 
 
