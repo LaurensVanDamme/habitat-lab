@@ -27,7 +27,7 @@ from habitat.tasks.nav.nav import (
     ProximitySensor,
 )
 # TODO: include new graph sensor here
-from habitat_baselines.graph_sensor import GraphSensor, NodesSensor, EdgesSensor
+from habitat_baselines.graph_sensor import GraphSensor, NodesSensor, EdgesSensor, MetricMapSensor
 
 from habitat.tasks.nav.object_nav_task import ObjectGoalSensor
 from habitat_baselines.common.baseline_registry import baseline_registry
@@ -372,6 +372,28 @@ class PointNavResNetNet(Net):
             self.GCN = GCN(observation_space)
             rnn_input_size += self.GCN.num_output_features
 
+        if MetricMapSensor.cls_uuid in observation_space.spaces:
+            metric_map_observation_space = spaces.Dict(
+                {"rgb": observation_space.spaces[MetricMapSensor.cls_uuid]}
+            )
+            self.metric_map_visual_encoder = ResNetEncoder(
+                metric_map_observation_space,
+                baseplanes=resnet_baseplanes,
+                ngroups=resnet_baseplanes // 2,
+                make_backbone=getattr(resnet, backbone),
+                normalize_visual_inputs=normalize_visual_inputs,
+            )
+
+            self.metric_map_visual_fc = nn.Sequential(
+                Flatten(),
+                nn.Linear(
+                    np.prod(self.metric_map_visual_encoder.output_shape), hidden_size
+                ),
+                nn.ReLU(True),
+            )
+
+            rnn_input_size += hidden_size
+
         self._hidden_size = hidden_size
 
         self.visual_encoder = ResNetEncoder(
@@ -412,7 +434,7 @@ class PointNavResNetNet(Net):
     def num_recurrent_layers(self):
         return self.state_encoder.num_recurrent_layers
 
-    def forward(   # TODO: This is where all the vectors of each sensor together?
+    def forward(   # TODO: This is where all the vectors of each sensor are put together
         self,
         observations: Dict[str, torch.Tensor],
         rnn_hidden_states,
@@ -506,6 +528,14 @@ class PointNavResNetNet(Net):
             x.append(self.GCN({'edges': edges, 'nodes': nodes}))
             # print('---------------------------- AFTER ----------------------------')
             # print(x)
+
+        if MetricMapSensor.cls_uuid in observations:
+            metric_map = observations[MetricMapSensor.cls_uuid]
+            metric_map_output = self.metric_map_visual_encoder({"rgb": metric_map})
+            x.append(self.metric_map_visual_fc(metric_map_output))
+
+        # print('############################################# OBSERVATION KEYS ################################################')
+        # print(observations.keys())
 
         prev_actions = self.prev_action_embedding(
             ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)

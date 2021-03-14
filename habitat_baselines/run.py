@@ -17,6 +17,10 @@ from habitat.config import Config
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.config.default import get_config
 
+import habitat_sim
+from habitat.utils.visualizations import maps
+from PIL import Image
+
 import wandb
 
 def main():
@@ -56,7 +60,9 @@ def execute_exp(config: Config, run_type: str) -> None:
 
     trainer_init = baseline_registry.get_trainer(config.TRAINER_NAME)
     assert trainer_init is not None, f"{config.TRAINER_NAME} is not supported"
+    # print('######################## TYPE OF TRAINER_INTIT', type(trainer_init), 'TRAINER_INIT', trainer_init)
     trainer = trainer_init(config)
+    # print('######################## TYPE OF TRAINER', type(trainer))
 
     if run_type == "train":
         trainer.train()
@@ -118,29 +124,61 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     config.TENSORBOARD_DIR = os.path.join(wandb.run.dir, 'tb')
     config.VIDEO_DIR = os.path.join(wandb.run.dir, 'videos')
 
-    # Add the edges sensor to the task
-    config.TASK_CONFIG.TASK.EDGES_SENSOR = habitat.Config()
-    # Use the custom name
-    config.TASK_CONFIG.TASK.EDGES_SENSOR.TYPE = "edges_sensor"
-    # Add the sensor to the list of sensors in use
-    config.TASK_CONFIG.TASK.SENSORS.append("EDGES_SENSOR")
+    # # Add the edges sensor to the task
+    # config.TASK_CONFIG.TASK.EDGES_SENSOR = habitat.Config()
+    # # Use the custom name
+    # config.TASK_CONFIG.TASK.EDGES_SENSOR.TYPE = "edges_sensor"
+    # # Add the sensor to the list of sensors in use
+    # config.TASK_CONFIG.TASK.SENSORS.append("EDGES_SENSOR")
+    #
+    # # Add the nodes sensor to the task
+    # config.TASK_CONFIG.TASK.NODES_SENSOR = habitat.Config()
+    # # Use the custom name
+    # config.TASK_CONFIG.TASK.NODES_SENSOR.TYPE = "nodes_sensor"
+    # # Add the sensor to the list of sensors in use
+    # config.TASK_CONFIG.TASK.SENSORS.append("NODES_SENSOR")
+    #
+    # # Add the graph of the env to the sensors
+    # # graph = {
+    # #     'edges': [[0, 1, 1, 2], [1, 0, 2, 1]],
+    # #     'nodes': [[-1], [0], [1]],
+    # #     'updated': False
+    # # }
+    # graph = [False, [[-1], [0], [1]], [[0, 1, 1, 2], [1, 0, 2, 1]]]
+    # config.TASK_CONFIG.TASK.EDGES_SENSOR.GRAPH = graph
+    # config.TASK_CONFIG.TASK.NODES_SENSOR.GRAPH = graph
 
     # Add the nodes sensor to the task
-    config.TASK_CONFIG.TASK.NODES_SENSOR = habitat.Config()
+    config.TASK_CONFIG.TASK.METRIC_MAP_SENSOR = habitat.Config()
     # Use the custom name
-    config.TASK_CONFIG.TASK.NODES_SENSOR.TYPE = "nodes_sensor"
+    config.TASK_CONFIG.TASK.METRIC_MAP_SENSOR.TYPE = "metric_map_sensor"
     # Add the sensor to the list of sensors in use
-    config.TASK_CONFIG.TASK.SENSORS.append("NODES_SENSOR")
+    config.TASK_CONFIG.TASK.SENSORS.append("METRIC_MAP_SENSOR")
 
-    # Add the graph of the env to the sensors
-    # graph = {
-    #     'edges': [[0, 1, 1, 2], [1, 0, 2, 1]],
-    #     'nodes': [[-1], [0], [1]],
-    #     'updated': False
-    # }
-    graph = [False, [[-1], [0], [1]], [[0, 1, 1, 2], [1, 0, 2, 1]]]
-    config.TASK_CONFIG.TASK.EDGES_SENSOR.GRAPH = graph
-    config.TASK_CONFIG.TASK.NODES_SENSOR.GRAPH = graph
+    # Add the top_down_map of the env to the sensor
+    cfg = habitat.get_config(config_paths="configs/tasks/pointnav.yaml")
+    cfg.defrost()
+    cfg.DATASET.DATA_PATH = 'data/datasets/pointnav/beacon/v0/{split}/{split}.json.gz'
+    cfg.freeze()
+    # print('############## CFG ##################\n', cfg)
+    dataset = habitat.make_dataset(
+        id_dataset=cfg.DATASET.TYPE, config=cfg.DATASET
+    )
+    env_ = habitat.Env(config=cfg, dataset=dataset)
+    # import imageio
+    env_.reset()
+    top_down_map = maps.get_topdown_map_from_sim(
+        env_.sim, map_resolution=1024
+    )
+    recolor_map = np.array(
+        [[255, 255, 255], [128, 128, 128], [0, 0, 0]], dtype=np.uint8
+    )
+    top_down_map = recolor_map[top_down_map]
+    # print('###################### SAVING MAP ######################')
+    # imageio.imsave(
+    #     "/project/top_down_map.png", top_down_map
+    # )
+    config.TASK_CONFIG.TASK.METRIC_MAP_SENSOR.METRIC_MAP = top_down_map
 
     config.freeze()
 
