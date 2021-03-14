@@ -384,10 +384,11 @@ class PointNavResNetNet(Net):
                 normalize_visual_inputs=normalize_visual_inputs,
             )
 
+            # TODO: little cheat here to make the resnet work
             self.metric_map_visual_fc = nn.Sequential(
                 Flatten(),
                 nn.Linear(
-                    np.prod(self.metric_map_visual_encoder.output_shape), hidden_size
+                    np.prod((228, 4, 4)), hidden_size
                 ),
                 nn.ReLU(True),
             )
@@ -515,7 +516,10 @@ class PointNavResNetNet(Net):
 
         if ImageGoalSensor.cls_uuid in observations:
             goal_image = observations[ImageGoalSensor.cls_uuid]
+            # print('################################################## IMAGE GOAL OBSERVATION FOUND ##################################################')
+            # print(goal_image.shape)
             goal_output = self.goal_visual_encoder({"rgb": goal_image})
+            # print(goal_output.shape, ' <> ', self.goal_visual_encoder.output_shape)
             x.append(self.goal_visual_fc(goal_output))
 
         # TODO: add GraphSensor observation?
@@ -530,9 +534,15 @@ class PointNavResNetNet(Net):
             # print(x)
 
         if MetricMapSensor.cls_uuid in observations:
+            # print('################################################## METRIC MAP OBSERVATION FOUND ##################################################')
             metric_map = observations[MetricMapSensor.cls_uuid]
+            # print(metric_map.shape)
             metric_map_output = self.metric_map_visual_encoder({"rgb": metric_map})
-            x.append(self.metric_map_visual_fc(metric_map_output))
+            # print(metric_map_output.shape, ' <> ', self.metric_map_visual_encoder.output_shape)
+            # print(metric_map_output)
+            metric_map_features = self.metric_map_visual_fc(metric_map_output)
+            # print(metric_map_features.shape)
+            x.append(metric_map_features)
 
         # print('############################################# OBSERVATION KEYS ################################################')
         # print(observations.keys())

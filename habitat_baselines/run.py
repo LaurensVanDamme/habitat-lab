@@ -156,29 +156,32 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     config.TASK_CONFIG.TASK.SENSORS.append("METRIC_MAP_SENSOR")
 
     # Add the top_down_map of the env to the sensor
-    cfg = habitat.get_config(config_paths="configs/tasks/pointnav.yaml")
-    cfg.defrost()
-    cfg.DATASET.DATA_PATH = 'data/datasets/pointnav/beacon/v0/{split}/{split}.json.gz'
-    cfg.freeze()
-    # print('############## CFG ##################\n', cfg)
-    dataset = habitat.make_dataset(
-        id_dataset=cfg.DATASET.TYPE, config=cfg.DATASET
-    )
-    env_ = habitat.Env(config=cfg, dataset=dataset)
+    # cfg = habitat.get_config(config_paths="configs/tasks/pointnav.yaml")
+    # cfg.defrost()
+    # cfg.DATASET.DATA_PATH = 'data/datasets/pointnav/beacon/v0/{split}/{split}.json.gz'
+    # cfg.freeze()
+    # # print('############## CFG ##################\n', cfg)
+    # dataset = habitat.make_dataset(
+    #     id_dataset=cfg.DATASET.TYPE, config=cfg.DATASET
+    # )
+    # env_ = habitat.Env(config=cfg, dataset=dataset)
     # import imageio
-    env_.reset()
-    top_down_map = maps.get_topdown_map_from_sim(
-        env_.sim, map_resolution=1024
-    )
-    recolor_map = np.array(
-        [[255, 255, 255], [128, 128, 128], [0, 0, 0]], dtype=np.uint8
-    )
-    top_down_map = recolor_map[top_down_map]
+    # env_.reset()
+    # top_down_map = maps.get_topdown_map_from_sim(
+    #     env_.sim, meters_per_pixel=0.25
+    # )
+    # recolor_map = np.array(
+    #     [[255, 255, 255], [128, 128, 128], [0, 0, 0]], dtype=np.uint8
+    # )
+    # top_down_map = recolor_map[top_down_map]
     # print('###################### SAVING MAP ######################')
     # imageio.imsave(
-    #     "/project/top_down_map.png", top_down_map
+    #     "/project/top_down_map_025.png", top_down_map
     # )
-    config.TASK_CONFIG.TASK.METRIC_MAP_SENSOR.METRIC_MAP = top_down_map
+    # config.TASK_CONFIG.TASK.METRIC_MAP_SENSOR.METRIC_MAP = top_down_map.tolist()
+    config.TASK_CONFIG.TASK.METRIC_MAP_SENSOR.METRIC_MAP_PATH = 'top_down_map_025.png'
+
+    # print('###################### ADDED METRIC SENSOR ######################')
 
     config.freeze()
 

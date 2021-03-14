@@ -7,6 +7,35 @@ from gym import spaces
 
 # import habitat.utils.visualizations.maps as maps
 from PIL import Image
+import math
+
+
+def resize_canvas(old_image_path="314.jpg", canvas_width=500, canvas_height=500):
+    """
+    Place one image on another image.
+
+    Resize the canvas of old_image_path and store the new image in
+    new_image_path. Center the image on the new canvas.
+    """
+    im = Image.open(old_image_path)
+    old_width, old_height = im.size
+
+    # Center the image
+    x1 = int(math.floor((canvas_width - old_width) / 2))
+    y1 = int(math.floor((canvas_height - old_height) / 2))
+
+    mode = im.mode
+    if len(mode) == 1:  # L, 1
+        new_background = (255)
+    if len(mode) == 3:  # RGB
+        new_background = (255, 255, 255)
+    if len(mode) == 4:  # RGBA, CMYK
+        new_background = (255, 255, 255, 255)
+
+    newImage = Image.new(mode, (canvas_width, canvas_height), new_background)
+    newImage.paste(im, (x1, y1, x1 + old_width, y1 + old_height))
+    return newImage
+
 
 def graph_update(graph):
     # print("################################################### GRAPH UPDATE ###################################################")
@@ -180,9 +209,11 @@ class MetricMapSensor(habitat.Sensor):
 
     def __init__(self, sim, config, **kwargs: Any):
         super().__init__(config=config)
-        print('################################################## METRIC MAP SENSOR ##################################################')
-        self.metric_map = self.config.METRIC_MAP
+        # print('################################################## METRIC MAP SENSOR ##################################################')
+        # self.metric_map = np.array(self.config.METRIC_MAP)
+        self.metric_map = np.asarray(resize_canvas(self.config.METRIC_MAP_PATH, 254, 254))
         self.shape_ = self.metric_map.shape
+        # print(self.shape_)
 
     # Defines the name of the sensor in the sensor suite dictionary
     def _get_uuid(self, *args: Any, **kwargs: Any) -> str:
@@ -197,7 +228,8 @@ class MetricMapSensor(habitat.Sensor):
         return spaces.Box(
             low=np.finfo(np.float32).min,
             high=np.finfo(np.float32).max,
-            shape=self.shape_,
+            # shape=(94, 254, 3),
+            shape=(254, 254, 3),
             dtype=np.float32,
         )
 
@@ -205,5 +237,6 @@ class MetricMapSensor(habitat.Sensor):
     def get_observation(
         self, observations, *args: Any, episode, **kwargs: Any
     ):
-        print('################################################## METRIC MAP SENSOR OBSERVATION ##################################################')
+        # print('################################################## METRIC MAP SENSOR OBSERVATION ##################################################')
+        # print(self.metric_map.shape)
         return self.metric_map
